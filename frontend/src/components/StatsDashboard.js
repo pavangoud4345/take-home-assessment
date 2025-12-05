@@ -1,62 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import './StatsDashboard.css';
-import { apiService } from '../services/apiService';
+// frontend/src/components/StatsDashboard.js
+import React, { useEffect, useState } from 'react';
+import { getStats } from '../services/api';
 
-const StatsDashboard = () => {
+export default function StatsDashboard() {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // TODO: Implement fetchStats function
-  useEffect(() => {
-    const fetchStats = async () => {
+  useEffect(()=>{
+    let mounted = true;
+    async function fetchStats() {
       setLoading(true);
       try {
-        // TODO: Call apiService.getStats()
-        // TODO: Update stats state
+        const s = await getStats();
+        if (mounted) setStats(s);
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+        // handle
+      } finally { setLoading(false); }
+    }
     fetchStats();
+    return () => mounted = false;
   }, []);
 
-  if (loading) {
-    return (
-      <div className="stats-dashboard-container">
-        <div className="loading">Loading statistics...</div>
-      </div>
-    );
-  }
+  if (loading) return <div>Loading stats...</div>;
+  if (!stats) return <div>No stats</div>;
 
-  if (error || !stats) {
-    return (
-      <div className="stats-dashboard-container">
-        <div className="error">Error loading statistics: {error || 'No data available'}</div>
-      </div>
-    );
-  }
+  const cards = [
+    { label: 'Total Patients', value: stats.totalPatients },
+    { label: 'Total Records', value: stats.totalRecords },
+    { label: 'Total Consents', value: stats.totalConsents },
+    { label: 'Active Consents', value: stats.activeConsents },
+    { label: 'Pending Consents', value: stats.pendingConsents },
+    { label: 'Total Transactions', value: stats.totalTransactions },
+  ];
 
   return (
-    <div className="stats-dashboard-container">
-      <h2>Platform Statistics</h2>
-      
-      {/* TODO: Display statistics in a nice grid layout */}
-      {/* Show: totalPatients, totalRecords, totalConsents, activeConsents, pendingConsents, totalTransactions */}
+    <div>
+      <h2>Platform Stats</h2>
       <div className="stats-grid">
-        {/* Your implementation here */}
-        <div className="placeholder">
-          <p>Statistics will be displayed here</p>
-          <p>Implement the statistics dashboard</p>
-        </div>
+        {cards.map(c => (
+          <div key={c.label} className="stat-card">
+            <div className="stat-value">{c.value ?? '-'}</div>
+            <div className="stat-label">{c.label}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
-};
-
-export default StatsDashboard;
-
-
+}

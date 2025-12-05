@@ -1,79 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import './TransactionHistory.css';
-import { apiService } from '../services/apiService';
+// frontend/src/components/TransactionHistory.js
+import React, { useEffect, useState } from 'react';
+import { getTransactions } from '../services/api';
+import { useWeb3 } from '../hooks/useWeb3';
+import { truncateAddr, formatDate, formatCurrency } from '../utils/format';
 
-const TransactionHistory = ({ account }) => {
+export default function TransactionHistory() {
+  const { account, isConnected } = useWeb3();
+  const [walletFilter, setWalletFilter] = useState('');
+  useEffect(()=> { if (account) setWalletFilter(account); }, [account]);
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // TODO: Implement fetchTransactions function
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        // TODO: Call apiService.getTransactions with account address if available
-        // TODO: Update transactions state
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, [account]);
-
-  const formatAddress = (address) => {
-    if (!address) return '';
-    return `${address.slice(0, 8)}...${address.slice(-6)}`;
-  };
-
-  const formatDate = (timestamp) => {
-    // TODO: Format the timestamp to a readable date
-    return timestamp;
-  };
-
-  if (loading) {
-    return (
-      <div className="transaction-history-container">
-        <div className="loading">Loading transactions...</div>
-      </div>
-    );
+  async function fetchTxs() {
+    setLoading(true);
+    try {
+      const res = await getTransactions(walletFilter, 50);
+      setTransactions(res || []);
+    } catch(e) {
+      // handle
+    } finally { setLoading(false); }
   }
 
-  if (error) {
-    return (
-      <div className="transaction-history-container">
-        <div className="error">Error: {error}</div>
-      </div>
-    );
-  }
+  useEffect(()=> { fetchTxs(); }, [walletFilter]);
 
   return (
-    <div className="transaction-history-container">
-      <div className="transaction-header">
-        <h2>Transaction History</h2>
-        {account && (
-          <div className="wallet-filter">
-            Filtering for: {formatAddress(account)}
-          </div>
-        )}
+    <div>
+      <h2>Transactions</h2>
+      <div>
+        <label>Wallet filter:
+          <input value={walletFilter} onChange={e=>setWalletFilter(e.target.value)} placeholder="0x..." />
+        </label>
+        <button onClick={fetchTxs}>Refresh</button>
       </div>
 
-      {/* TODO: Display transactions list */}
-      {/* Show: type, from, to, amount, currency, status, timestamp, blockchainTxHash */}
-      <div className="transactions-list">
-        {/* Your implementation here */}
-        <div className="placeholder">
-          <p>Transaction list will be displayed here</p>
-          <p>Implement the transaction list rendering</p>
+      {loading ? <div>Loading...</div> : (
+        <div className="tx-grid">
+          {transactions.map(tx => (
+            <div className="tx-card" key={tx.id}>
+              <div><strong>{tx.type}</strong> — {tx.status}</div>
+              <div>{formatCurrency(tx.amount)}</div>
+              <div>{formatDate(tx.timestamp)}</div>
+              <div>From: {truncateAddr(tx.from)}</div>
+              <div>To: {truncateAddr(tx.to)}</div>
+              <div>Hash: <code>{tx.blockchainHash}</code></div>
+            </div>
+          ))}
+          {transactions.length === 0 && <div>No transactions</div>}
         </div>
-      </div>
+      )}
     </div>
   );
-};
-
-export default TransactionHistory;
-
-
+}

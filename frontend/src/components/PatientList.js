@@ -1,94 +1,75 @@
-import React, { useState, useEffect } from 'react';
-import './PatientList.css';
-import { apiService } from '../services/apiService';
+// frontend/src/components/PatientList.js
+import React, { useState, useEffect, useCallback } from 'react';
+import { getPatients } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { formatDate } from '../utils/format';
 
-const PatientList = ({ onSelectPatient }) => {
+export default function PatientList() {
   const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState('');
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
+  const navigate = useNavigate();
 
-  // TODO: Implement the fetchPatients function
-  // This function should:
-  // 1. Call apiService.getPatients with appropriate parameters (page, limit, search)
-  // 2. Update the patients state with the response data
-  // 3. Update the pagination state
-  // 4. Handle loading and error states
-  const fetchPatients = async () => {
-    // Your implementation here
+  // debounce search
+  useEffect(() => {
+    const t = setTimeout(()=> setPage(1), 300);
+    return ()=> clearTimeout(t);
+  }, [search]);
+
+  const fetchPatients = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      // TODO: Call API and update state
+      const res = await getPatients(page, limit, search);
+      // assume backend returns { data: [...], totalPages, total }
+      const { data, totalPages: tp } = res;
+      setPatients(data || []);
+      setTotalPages(tp || 1);
     } catch (err) {
-      setError(err.message);
+      setError('Failed to load patients');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search]);
 
-  useEffect(() => {
-    fetchPatients();
-  }, [currentPage, searchTerm]);
-
-  // TODO: Implement search functionality
-  // Add a debounce or handle search input changes
-  const handleSearch = (e) => {
-    // Your implementation here
-  };
-
-  if (loading) {
-    return (
-      <div className="patient-list-container">
-        <div className="loading">Loading patients...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="patient-list-container">
-        <div className="error">Error: {error}</div>
-      </div>
-    );
-  }
+  useEffect(()=> { fetchPatients(); }, [fetchPatients]);
 
   return (
-    <div className="patient-list-container">
-      <div className="patient-list-header">
-        <h2>Patients</h2>
-        {/* TODO: Add search input field */}
+    <div>
+      <h2>Patients</h2>
+
+      <div>
         <input
-          type="text"
-          placeholder="Search patients..."
-          className="search-input"
-          // TODO: Add value, onChange handlers
+          placeholder="Search by name, email, phone"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {/* TODO: Implement patient list display */}
-      {/* Map through patients and display them */}
-      {/* Each patient should be clickable and call onSelectPatient with patient.id */}
-      <div className="patient-list">
-        {/* Your implementation here */}
-        <div className="placeholder">
-          <p>Patient list will be displayed here</p>
-          <p>Implement the patient list rendering</p>
-        </div>
+      {loading && <div>Loading patients...</div>}
+      {error && <div className="error">{error}</div>}
+      {!loading && patients.length === 0 && <div>No patients found.</div>}
+
+      <div className="cards-grid">
+        {patients.map(p => (
+          <div key={p.id} className="patient-card" onClick={() => navigate(`/patients/${p.id}`)}>
+            <h3>{p.name}</h3>
+            <div>{p.email}</div>
+            <div>{p.phone}</div>
+            <div>DOB: {formatDate(p.dob)}</div>
+          </div>
+        ))}
       </div>
 
-      {/* TODO: Implement pagination controls */}
-      {/* Show pagination buttons if pagination data is available */}
-      {pagination && (
-        <div className="pagination">
-          {/* Your pagination implementation here */}
-        </div>
-      )}
+      <div className="pagination">
+        <button disabled={page<=1} onClick={()=> setPage(page-1)}>Prev</button>
+        <span>Page {page} / {totalPages}</span>
+        <button disabled={page>=totalPages} onClick={()=> setPage(page+1)}>Next</button>
+      </div>
     </div>
   );
-};
-
-export default PatientList;
-
-
+}
